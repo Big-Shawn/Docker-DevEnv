@@ -1,0 +1,55 @@
+version: '3'
+services:
+
+# 通过挂载相同位置的文件目录来做到项目文件的访问
+  php:
+    image: "php:8.0-fpm-alpine"
+    #注意ports 和 expose 的区别
+    # ports 是容器对外暴露的端口，不仅在容器网络中可访问，在宿主机上也能进行访问
+    # expose 是容器网络中的端口暴露，只有在容器网络中的应用才能进行访问，而宿主机则不能进行访问。
+    expose:
+     - "9000"
+    container_name: "php8.0"
+    volumes:
+      - ~/lnmp/www/:/var/www/html:rw
+    #这个是干什么用的？
+    cap_add:
+      - SYS_PTRACE
+    networks:
+     - lnmp
+    environment:
+      TZ: "Asia/Shanghai"
+
+  #注意使用多个容器组合时，需要nginx以tcp的形式进行通讯，也就是域名加端口的套接字形式传递php解析服务
+  # 进程通讯
+  nginx:
+    image: "nginx:stable-alpine-perl"
+    container_name: "nginx"
+    ports:
+      - "8014:80"
+    volumes:
+      - ~/lnmp/nginx/setting/default.conf:/etc/nginx/conf.d/default.conf
+      - ~/lnmp/www/:/usr/share/nginx/html:rw
+    restart: always
+    networks:
+     - lnmp
+    environment:
+      TZ: "Asia/Shanghai"
+
+  redis:
+    image: "redis:alpine"
+    container_name: "redis"
+    ports:
+      - "6397"
+    networks:
+      - lnmp
+    environment:
+      TZ: "Asia/Shanghai"
+
+#这里定义的是容器组所在的网络名称，这个网络还能具体定义网段，在这个网络中的容器同样也可以手动设置ip地址
+# 在nginx中使用的redis其实相当于在这个容器网络中的域名，容器会请求redis在网络中对应的ip地址
+networks:
+   lnmp: {}
+     
+
+#使用官方维护的镜像的好处就是直接拉过来就能用，当然利用compose 还是可以在这些镜像的基础上进行定制化，编译制作出更加符合自己使用的容器组
